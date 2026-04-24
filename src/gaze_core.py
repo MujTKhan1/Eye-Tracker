@@ -6,11 +6,23 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+EYE_LANDMARK_COUNT = 10
+FACE_LANDMARK_COUNT = 6
+FLAT_FEATURE_DIM = (EYE_LANDMARK_COUNT + FACE_LANDMARK_COUNT) * 2
+EXTRA_FEATURE_DIM = 3
+
 
 @dataclass
 class FrameFeatures:
     vector: np.ndarray
     frame: np.ndarray
+    left_blink: float
+    right_blink: float
+    mouth_open: float
+
+    @property
+    def mean_blink(self) -> float:
+        return float((self.left_blink + self.right_blink) / 2.0)
 
 
 def get_screen_size() -> Tuple[int, int]:
@@ -38,6 +50,21 @@ def _normalize_points(points: np.ndarray, width: int, height: int) -> np.ndarray
     out[:, 0] /= float(width)
     out[:, 1] /= float(height)
     return out.reshape(-1)
+
+
+def split_feature_vector(vector: np.ndarray):
+    flat = vector[:FLAT_FEATURE_DIM]
+    left_blink = vector[FLAT_FEATURE_DIM]
+    right_blink = vector[FLAT_FEATURE_DIM + 1]
+    wh_ratio = vector[FLAT_FEATURE_DIM + 2]
+
+    eye_flat_dim = EYE_LANDMARK_COUNT * 2
+    eye_flat = flat[:eye_flat_dim]
+    face_flat = flat[eye_flat_dim:]
+
+    eye_vec = np.concatenate([eye_flat, np.array([left_blink, right_blink, wh_ratio], dtype=np.float32)])
+    head_vec = np.concatenate([face_flat, np.array([wh_ratio], dtype=np.float32)])
+    return vector, eye_vec.astype(np.float32), head_vec.astype(np.float32)
 
 
 def extract_features(frame: np.ndarray, face_mesh) -> Optional[FrameFeatures]:
@@ -68,6 +95,11 @@ def extract_features(frame: np.ndarray, face_mesh) -> Optional[FrameFeatures]:
     right_h = np.linalg.norm(pts[6] - pts[7])
     left_blink = left_h / left_w
     right_blink = right_h / right_w
+    upper_lip = np.array(_landmark_xy(lm, 13, w, h), dtype=np.float32)
+    lower_lip = np.array(_landmark_xy(lm, 14, w, h), dtype=np.float32)
+    mouth_w = np.linalg.norm(pts[12] - pts[13]) + 1e-6
+    mouth_h = np.linalg.norm(upper_lip - lower_lip)
+    mouth_open = mouth_h / mouth_w
 
     flat = _normalize_points(pts, w, h)
     extra = np.array([
@@ -76,7 +108,13 @@ def extract_features(frame: np.ndarray, face_mesh) -> Optional[FrameFeatures]:
         float(w) / max(float(h), 1.0),
     ], dtype=np.float32)
 
-    return FrameFeatures(vector=np.concatenate([flat, extra]), frame=frame)
+    return FrameFeatures(
+        vector=np.concatenate([flat, extra]),
+        frame=frame,
+        left_blink=float(left_blink),
+        right_blink=float(right_blink),
+        mouth_open=float(mouth_open),
+    )
 
 
 def draw_status(frame: np.ndarray, text: str, ok: bool = True) -> np.ndarray:

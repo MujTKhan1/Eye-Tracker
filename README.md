@@ -38,6 +38,29 @@ This saves `calibration_model.pkl`.
 Controls:
 - `ESC`: quit
 
+Hybrid tuning:
+- `--head-assist 0.0` = pure eye model
+- `--head-assist 0.3` to `0.5` = eye + face/head assist (usually smoother)
+- `--head-assist 1.0` = pure head/face model
+
+Example:
+```powershell
+.\.venv\Scripts\python track.py --smooth 0.28 --head-assist 0.35
+```
+
+Mouse control example:
+```powershell
+.\.venv\Scripts\python track.py --control-mouse --mouth-open-click --snap-clickables --smooth 0.28 --head-assist 0.35 --y-gain 1.25
+```
+
+Mouse control flags:
+- `--control-mouse` moves the real Windows cursor to the predicted gaze point
+- `--mouth-open-click` uses mouth duration for clicks: short open = single click, long open = double click
+- `--snap-clickables` latches onto nearby Windows buttons and fields while a mouth click is arming
+- `--snap-browse-items` also allows list/tree/data items to snap in dense apps like File Explorer
+- `--edge-zone-ratio` and `--edge-boost-px` help the cursor keep reaching true screen edges even when snapping shortens the range
+- `--show-overlay` keeps the fullscreen gaze overlay visible while controlling the real mouse
+
 ## Tips for better accuracy
 - Sit at normal viewing distance and keep posture steady during calibration.
 - Use bright, even lighting.

@@ -1,12 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*.pkl
+
 .venv/
 .venv39/
 
 # Calibration artifacts
-calibration_model.pkl
 
 # OS
 .DS_Store
